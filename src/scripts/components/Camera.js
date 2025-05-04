@@ -11,6 +11,8 @@ class Camera {
     try {
       this.stop();
       
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: this.facingMode,
@@ -48,9 +50,15 @@ class Camera {
         errorMessage = 'No camera found on your device.';
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Camera is already in use by another application.';
+      } else if (error.name === 'AbortError') {
+        errorMessage = 'Camera access was aborted. Please try again.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = 'Camera constraints not satisfied. Please try different settings.';
+      } else if (error.name === 'TypeError') {
+        errorMessage = 'Invalid camera constraints. Please try again.';
       }
       
-      alert(errorMessage);
+      console.warn(errorMessage);
       return false;
     }
   }

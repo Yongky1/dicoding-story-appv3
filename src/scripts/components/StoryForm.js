@@ -24,24 +24,54 @@ class StoryForm {
         
         <div class="form-group">
           <label for="photo-section">Photo</label>
-          <div id="photo-section" class="camera-container">
-            <video id="video-preview" autoplay playsinline class="camera-preview"></video>
-            <canvas id="camera-canvas" class="camera-preview hidden"></canvas>
-            <div class="camera-controls">
-              <button type="button" id="start-camera" class="btn btn-secondary">
-                <i class="fas fa-camera"></i> Start Camera
+          <div class="photo-options">
+            <div class="option-tabs">
+              <button type="button" id="file-option-btn" class="option-tab active">
+                <i class="fas fa-file-upload"></i> Upload File
               </button>
-              <button type="button" id="capture-photo" class="btn btn-primary hidden">
-                <i class="fas fa-camera"></i> Capture Photo
-              </button>
-              <button type="button" id="retake-photo" class="btn btn-secondary hidden">
-                <i class="fas fa-redo"></i> Retake
-              </button>
-              <button type="button" id="switch-camera" class="btn btn-secondary hidden">
-                <i class="fas fa-sync"></i> Switch Camera
+              <button type="button" id="camera-option-btn" class="option-tab">
+                <i class="fas fa-camera"></i> Use Camera
               </button>
             </div>
-            <div id="camera-status" class="camera-status" aria-live="polite"></div>
+            
+            <div id="file-upload-container" class="photo-option-container">
+              <div class="file-upload-wrapper">
+                <input type="file" id="photo-file" accept="image/*" class="file-input">
+                <label for="photo-file" class="file-label">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <span id="file-name">Choose image file (max 1MB)</span>
+                </label>
+              </div>
+              <div id="file-preview-container" class="file-preview-container hidden">
+                <img id="file-preview" class="file-preview">
+                <button type="button" id="remove-file" class="btn btn-secondary">
+                  <i class="fas fa-trash"></i> Remove
+                </button>
+              </div>
+              <div id="file-status" class="file-status" aria-live="polite"></div>
+            </div>
+            
+            <div id="camera-container" class="photo-option-container hidden">
+              <div id="photo-section" class="camera-container">
+                <video id="video-preview" autoplay playsinline class="camera-preview"></video>
+                <canvas id="camera-canvas" class="camera-preview hidden"></canvas>
+                <div class="camera-controls">
+                  <button type="button" id="start-camera" class="btn btn-secondary">
+                    <i class="fas fa-camera"></i> Start Camera
+                  </button>
+                  <button type="button" id="capture-photo" class="btn btn-primary hidden">
+                    <i class="fas fa-camera"></i> Capture Photo
+                  </button>
+                  <button type="button" id="retake-photo" class="btn btn-secondary hidden">
+                    <i class="fas fa-redo"></i> Retake
+                  </button>
+                  <button type="button" id="switch-camera" class="btn btn-secondary hidden">
+                    <i class="fas fa-sync"></i> Switch Camera
+                  </button>
+                </div>
+                <div id="camera-status" class="camera-status" aria-live="polite"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -62,9 +92,93 @@ class StoryForm {
   }
 
   initComponents() {
-    this.initializeCamera();
+    this.initializeFileUpload();
+    this.initializeTabSwitching();
     this.initializeMap();
     this.setupFormSubmission();
+  }
+
+  initializeTabSwitching() {
+    const fileOptionBtn = document.getElementById('file-option-btn');
+    const cameraOptionBtn = document.getElementById('camera-option-btn');
+    const fileUploadContainer = document.getElementById('file-upload-container');
+    const cameraContainer = document.getElementById('camera-container');
+    
+    fileOptionBtn.addEventListener('click', () => {
+      fileOptionBtn.classList.add('active');
+      cameraOptionBtn.classList.remove('active');
+      fileUploadContainer.classList.remove('hidden');
+      cameraContainer.classList.add('hidden');
+      
+      if (this.camera) {
+        this.camera.stop();
+      }
+    });
+    
+    cameraOptionBtn.addEventListener('click', () => {
+      fileOptionBtn.classList.remove('active');
+      cameraOptionBtn.classList.add('active');
+      fileUploadContainer.classList.add('hidden');
+      cameraContainer.classList.remove('hidden');
+      
+      if (!this.camera) {
+        this.initializeCamera();
+      }
+    });
+  }
+
+  initializeFileUpload() {
+    const fileInput = document.getElementById('photo-file');
+    const fileStatus = document.getElementById('file-status');
+    const filePreviewContainer = document.getElementById('file-preview-container');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const removeFileButton = document.getElementById('remove-file');
+    
+    const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB max bytes
+    
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      
+      if (!file) {
+        return;
+      }
+      
+      if (file.size > MAX_FILE_SIZE) {
+        fileStatus.textContent = 'Error: File size exceeds 1MB limit';
+        fileStatus.classList.add('error');
+        fileInput.value = '';
+        return;
+      }
+      
+      if (!file.type.match('image.*')) {
+        fileStatus.textContent = 'Error: Please select an image file';
+        fileStatus.classList.add('error');
+        fileInput.value = '';
+        return;
+      }
+      
+      fileName.textContent = file.name;
+      this.photoFile = file;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        filePreview.src = e.target.result;
+        filePreviewContainer.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+      
+      fileStatus.textContent = 'File selected successfully';
+      fileStatus.classList.remove('error');
+    });
+    
+    removeFileButton.addEventListener('click', () => {
+      fileInput.value = '';
+      filePreviewContainer.classList.add('hidden');
+      fileName.textContent = 'Choose image file (max 1MB)';
+      this.photoFile = null;
+      fileStatus.textContent = '';
+    });
   }
 
   initializeCamera() {
@@ -89,11 +203,13 @@ class StoryForm {
           cameraStatus.textContent = 'Camera ready';
         } else {
           startButton.disabled = false;
-          cameraStatus.textContent = 'Failed to start camera. Please try again.';
+          cameraStatus.textContent = 'Failed to start camera. Please try again or use file upload instead.';
         }
       } catch (error) {
         startButton.disabled = false;
-        cameraStatus.textContent = `Error: ${error.message}`;
+        cameraStatus.textContent = `Error: ${error.message}. Please use file upload instead.`;
+        
+        document.getElementById('file-option-btn').click();
       }
     });
 
@@ -163,7 +279,7 @@ class StoryForm {
       const description = document.getElementById('description').value;
       
       if (!this.photoFile) {
-        alert('Please capture a photo first');
+        alert('Please upload or capture a photo first');
         return;
       }
 
