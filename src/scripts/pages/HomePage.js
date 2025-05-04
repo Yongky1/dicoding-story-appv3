@@ -2,6 +2,7 @@ import storyApi from '../api/storyApi';
 import StoryCard from '../components/StoryCard';
 import MapComponent from '../components/MapComponent';
 import { applyCustomTransition } from '../utils/transitions';
+import { checkAuth } from '../utils/auth';
 
 class HomePage {
   constructor() {
@@ -19,9 +20,40 @@ class HomePage {
     `;
     
     try {
+      if (!checkAuth()) {
+        app.innerHTML = `
+          <section class="stories-section">
+            <h2><i class="fas fa-book-open"></i> Dicoding Stories</h2>
+            <p class="stories-intro">Please login to view stories</p>
+            <div class="no-stories">
+              <i class="fas fa-info-circle"></i>
+              <p>You need to <a href="#/login">login</a> to view stories from the Dicoding community.</p>
+            </div>
+          </section>
+        `;
+        return;
+      }
+      
       const response = await storyApi.getStories(1);
       
       if (response.error) {
+        if (response.message === 'Missing authentication') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.dispatchEvent(new Event('auth-change'));
+          
+          app.innerHTML = `
+            <section class="stories-section">
+              <h2><i class="fas fa-book-open"></i> Dicoding Stories</h2>
+              <p class="stories-intro">Please login to view stories</p>
+              <div class="no-stories">
+                <i class="fas fa-info-circle"></i>
+                <p>Your session has expired. Please <a href="#/login">login</a> again.</p>
+              </div>
+            </section>
+          `;
+          return;
+        }
         throw new Error(response.message);
       }
       
@@ -79,6 +111,8 @@ class HomePage {
   }
 
   destroy() {
+    if (this.map) {
+    }
   }
 }
 
