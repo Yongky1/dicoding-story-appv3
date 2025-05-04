@@ -37,7 +37,11 @@ class StoryForm {
               <button type="button" id="retake-photo" class="btn btn-secondary hidden">
                 <i class="fas fa-redo"></i> Retake
               </button>
+              <button type="button" id="switch-camera" class="btn btn-secondary hidden">
+                <i class="fas fa-sync"></i> Switch Camera
+              </button>
             </div>
+            <div id="camera-status" class="camera-status" aria-live="polite"></div>
           </div>
         </div>
 
@@ -66,23 +70,68 @@ class StoryForm {
   initializeCamera() {
     this.camera = new Camera('video-preview', 'camera-canvas');
     
-    document.getElementById('start-camera').addEventListener('click', async () => {
-      await this.camera.start();
-      document.getElementById('start-camera').classList.add('hidden');
-      document.getElementById('capture-photo').classList.remove('hidden');
+    const startButton = document.getElementById('start-camera');
+    const captureButton = document.getElementById('capture-photo');
+    const retakeButton = document.getElementById('retake-photo');
+    const switchButton = document.getElementById('switch-camera');
+    const cameraStatus = document.getElementById('camera-status');
+    
+    startButton.addEventListener('click', async () => {
+      cameraStatus.textContent = 'Starting camera...';
+      startButton.disabled = true;
+      
+      try {
+        const started = await this.camera.start();
+        if (started) {
+          startButton.classList.add('hidden');
+          captureButton.classList.remove('hidden');
+          switchButton.classList.remove('hidden');
+          cameraStatus.textContent = 'Camera ready';
+        } else {
+          startButton.disabled = false;
+          cameraStatus.textContent = 'Failed to start camera. Please try again.';
+        }
+      } catch (error) {
+        startButton.disabled = false;
+        cameraStatus.textContent = `Error: ${error.message}`;
+      }
     });
 
-    document.getElementById('capture-photo').addEventListener('click', async () => {
-      this.photoFile = await this.camera.capture();
-      document.getElementById('capture-photo').classList.add('hidden');
-      document.getElementById('retake-photo').classList.remove('hidden');
+    captureButton.addEventListener('click', async () => {
+      try {
+        cameraStatus.textContent = 'Capturing photo...';
+        this.photoFile = await this.camera.capture();
+        captureButton.classList.add('hidden');
+        switchButton.classList.add('hidden');
+        retakeButton.classList.remove('hidden');
+        cameraStatus.textContent = 'Photo captured';
+      } catch (error) {
+        cameraStatus.textContent = `Error capturing photo: ${error.message}`;
+      }
     });
 
-    document.getElementById('retake-photo').addEventListener('click', () => {
-      this.camera.retake();
-      this.photoFile = null;
-      document.getElementById('capture-photo').classList.remove('hidden');
-      document.getElementById('retake-photo').classList.add('hidden');
+    retakeButton.addEventListener('click', async () => {
+      cameraStatus.textContent = 'Restarting camera...';
+      try {
+        await this.camera.retake();
+        this.photoFile = null;
+        captureButton.classList.remove('hidden');
+        switchButton.classList.remove('hidden');
+        retakeButton.classList.add('hidden');
+        cameraStatus.textContent = 'Camera ready';
+      } catch (error) {
+        cameraStatus.textContent = `Error restarting camera: ${error.message}`;
+      }
+    });
+    
+    switchButton.addEventListener('click', async () => {
+      cameraStatus.textContent = 'Switching camera...';
+      try {
+        await this.camera.switchCamera();
+        cameraStatus.textContent = 'Camera switched';
+      } catch (error) {
+        cameraStatus.textContent = `Error switching camera: ${error.message}`;
+      }
     });
   }
 
