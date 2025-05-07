@@ -1,7 +1,8 @@
 class Camera {
-  constructor(videoId, canvasId) {
+  constructor(videoId, canvasId, previewId) {
     this.videoElement = document.getElementById(videoId);
     this.canvasElement = document.getElementById(canvasId);
+    this.previewElement = document.getElementById(previewId);
     this.stream = null;
     this.photo = null;
     this.facingMode = 'environment';
@@ -24,6 +25,11 @@ class Camera {
       
       this.videoElement.srcObject = this.stream;
       this.videoElement.style.display = 'block';
+      this.canvasElement.style.display = 'none';
+      if (this.previewElement) {
+        this.previewElement.style.display = 'none';
+        this.previewElement.src = '';
+      }
       
       try {
         await this.videoElement.play();
@@ -94,8 +100,23 @@ class Camera {
         this.canvasElement.toBlob(blob => {
           this.photo = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
           
+          // Show preview
+          if (this.previewElement) {
+            if (this.previewElement.src) {
+              URL.revokeObjectURL(this.previewElement.src);
+            }
+            
+            this.previewElement.src = URL.createObjectURL(blob);
+            this.previewElement.style.display = 'block';
+            
+            this.previewElement.style.width = '100%';
+            this.previewElement.style.maxWidth = '480px';
+            this.previewElement.style.maxHeight = '360px';
+            this.previewElement.style.objectFit = 'cover';
+          }
+          
           this.videoElement.style.display = 'none';
-          this.canvasElement.style.display = 'block';
+          this.canvasElement.style.display = 'none';
           
           this.stop();
           
@@ -111,6 +132,13 @@ class Camera {
   retake() {
     this.photo = null;
     this.canvasElement.style.display = 'none';
+    if (this.previewElement) {
+      if (this.previewElement.src) {
+        URL.revokeObjectURL(this.previewElement.src);
+      }
+      this.previewElement.style.display = 'none';
+      this.previewElement.src = '';
+    }
     this.videoElement.style.display = 'block';
     return this.start();
   }

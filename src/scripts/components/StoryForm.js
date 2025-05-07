@@ -1,4 +1,4 @@
-import storyApi from '../api/storyApi';
+import StoryPresenter from '../presenters/StoryPresenter';
 import Camera from './Camera';
 import MapComponent from './MapComponent';
 
@@ -9,6 +9,7 @@ class StoryForm {
     this.selectedLocation = null;
     this.photoFile = null;
     this.formContainer = null;
+    this.presenter = new StoryPresenter(this);
   }
 
   render(container) {
@@ -55,6 +56,7 @@ class StoryForm {
               <div id="photo-section" class="camera-container">
                 <video id="video-preview" autoplay playsinline class="camera-preview"></video>
                 <canvas id="camera-canvas" class="camera-preview hidden"></canvas>
+                <img id="camera-preview" class="camera-preview hidden">
                 <div class="camera-controls">
                   <button type="button" id="start-camera" class="btn btn-secondary">
                     <i class="fas fa-camera"></i> Start Camera
@@ -182,7 +184,7 @@ class StoryForm {
   }
 
   initializeCamera() {
-    this.camera = new Camera('video-preview', 'camera-canvas');
+    this.camera = new Camera('video-preview', 'camera-canvas', 'camera-preview');
     
     const startButton = document.getElementById('start-camera');
     const captureButton = document.getElementById('capture-photo');
@@ -253,73 +255,107 @@ class StoryForm {
 
   initializeMap() {
     this.map = new MapComponent('location-map');
-    this.map.init();
-
-    this.map.getCurrentLocation().catch(() => {
-      console.log('Could not get user location, using default');
-    });
-
-    window.addEventListener('map-clicked', (e) => {
-      this.selectedLocation = e.detail;
-      this.map.clearMarkers();
-      this.map.addMarker(e.detail.lat, e.detail.lon, 'Selected Location', 'Your story location');
-      
+    this.map.onLocationSelect = (location) => {
+      this.selectedLocation = location;
       const locationInfo = document.getElementById('location-info');
-      locationInfo.innerHTML = `
-        <p><i class="fas fa-map-marker-alt"></i> Location selected: ${e.detail.lat.toFixed(6)}, ${e.detail.lon.toFixed(6)}</p>
-      `;
-    });
+      locationInfo.textContent = `Selected location: ${location.lat}, ${location.lng}`;
+    };
   }
 
   setupFormSubmission() {
     const form = document.getElementById('story-form');
+    const submitButton = form.querySelector('.submit-btn');
+    
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      const description = document.getElementById('description').value;
-      
       if (!this.photoFile) {
-        alert('Please upload or capture a photo first');
+        this.showError('Please select a photo');
         return;
       }
-
-      const formData = new FormData();
-      formData.append('description', description);
-      formData.append('photo', this.photoFile);
       
-      if (this.selectedLocation) {
-        formData.append('lat', this.selectedLocation.lat);
-        formData.append('lon', this.selectedLocation.lon);
+      if (!this.selectedLocation) {
+        this.showError('Please select a location on the map');
+        return;
       }
-
-      const submitBtn = form.querySelector('.submit-btn');
-      const originalBtnText = submitBtn.innerHTML;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
-      submitBtn.disabled = true;
-
+      
+      const description = form.querySelector('#description').value.trim();
+      if (!description) {
+        this.showError('Please enter a description');
+        return;
+      }
+      
+      submitButton.disabled = true;
+      
       try {
-        const response = await storyApi.addStory(formData);
+        const formData = new FormData();
+        formData.append('description', description);
+        formData.append('photo', this.photoFile);
+        formData.append('lat', this.selectedLocation.lat);
+        formData.append('lon', this.selectedLocation.lng);
         
-        if (!response.error) {
-          alert('Story added successfully!');
-          window.location.hash = '/';
-        } else {
-          throw new Error(response.message);
-        }
+        await this.presenter.addStory(formData);
+        window.location.hash = '/';
       } catch (error) {
-        alert(`Error: ${error.message}`);
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
+        console.error('Error submitting story:', error);
+      } finally {
+        submitButton.disabled = false;
       }
     });
+  }
+
+  // View methods
+  showLoading() {
+    const submitButton = document.querySelector('.submit-btn');
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+  }
+
+  hideLoading() {
+    const submitButton = document.querySelector('.submit-btn');
+    submitButton.disabled = false;
+    submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Story';
+  }
+
+  showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.innerHTML = `
+      <i class="fas fa-exclamation-circle"></i>
+      <p>${message}</p>
+    `;
+    
+    const form = document.getElementById('story-form');
+    form.insertBefore(errorDiv, form.firstChild);
+    
+    setTimeout(() => {
+      errorDiv.remove();
+    }, 5000);
+  }
+
+  showSuccess(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.innerHTML = `
+      <i class="fas fa-check-circle"></i>
+      <p>${message}</p>
+    `;
+    
+    const form = document.getElementById('story-form');
+    form.insertBefore(successDiv, form.firstChild);
+    
+    setTimeout(() => {
+      successDiv.remove();
+    }, 5000);
   }
 
   destroy() {
     if (this.camera) {
       this.camera.stop();
     }
-    
-    window.removeEventListener('map-clicked', () => {});
+    if (this.map) {
+      this.map.destroy();
+    }
   }
 }
 

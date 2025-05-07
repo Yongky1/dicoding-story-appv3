@@ -233,6 +233,11 @@ body {
   border-radius: 8px;
   border: 2px solid #e5e7eb;
   background-color: #f3f4f6;
+  transition: all 0.3s ease;
+}
+
+.camera-preview.hidden {
+  display: none;
 }
 
 .camera-controls {
@@ -483,5 +488,45 @@ footer {
   .form-container {
     padding: 20px;
     margin: 20px;
+  }
+}
+
+/* Error and Success Messages */
+.error-message,
+.success-message {
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideIn 0.3s ease;
+}
+
+.error-message {
+  background-color: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.success-message {
+  background-color: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+}
+
+.error-message i,
+.success-message i {
+  font-size: 1.25rem;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
