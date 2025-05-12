@@ -11,17 +11,14 @@ class App {
     checkAuth();
     initViewTransitions();
     
-    window.addEventListener('hashchange', () => {
+    const handleAndUpdate = () => {
       this.router.handleRoute();
-    });
-
-    window.addEventListener('load', () => {
-      this.router.handleRoute();
-    });
-
-    window.addEventListener('auth-change', () => {
       updateNavigation();
-    });
+    };
+
+    window.addEventListener('hashchange', handleAndUpdate);
+    window.addEventListener('load', handleAndUpdate);
+    window.addEventListener('auth-change', updateNavigation);
   }
 }
 

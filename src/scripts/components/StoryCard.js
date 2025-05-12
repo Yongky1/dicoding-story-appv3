@@ -8,7 +8,9 @@ class StoryCard {
       return date.toLocaleDateString('id-ID', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
     }
   
@@ -32,8 +34,16 @@ class StoryCard {
               <div class="story-location">
                 <i class="fas fa-map-marker-alt"></i> 
                 <span>Location: ${lat.toFixed(6)}, ${lon.toFixed(6)}</span>
+                <button class="btn btn-link view-on-map" data-lat="${lat}" data-lon="${lon}">
+                  <i class="fas fa-map"></i> View on Map
+                </button>
               </div>
             ` : ''}
+            <div class="story-actions">
+              <button class="btn btn-link view-detail" data-id="${id}">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </div>
           </div>
         </article>
       `;
