@@ -4,147 +4,144 @@ import Camera from '../components/Camera';
 
 class StoryPresenter {
   constructor(view) {
-    this.view = view;
-    this.model = new StoryModel();
-    this.mapComponent = new MapComponent('location-map');
-    this.camera = new Camera();
-    this.isCameraActive = false;
+    this._view = view;
+    this._model = new StoryModel();
+    this._mapComponent = null;
+    this._camera = new Camera();
+    this._isCameraActive = false;
+    this._selectedMarker = null;
   }
 
   async init() {
-    // Inisialisasi view
-    this.view.initializeFileUpload();
-    this.view.initializeTabSwitching();
-    
-    // Setup camera callback
-    this.view.setCameraInitCallback(() => this.initializeCamera());
-    
-    // Inisialisasi peta
-    await this.initializeMap();
-    
-    // Setup form submission
-    this.setupFormSubmission();
+    try {
+      if (this._mapComponent) {
+        this._mapComponent.destroy();
+        this._mapComponent = null;
+      }
+      this._mapComponent = new MapComponent();
+      await this._mapComponent.init('location-map');
+      this._mapComponent.onLocationSelect = this._handleLocationSelect.bind(this);
+      this._view.setMap(this._mapComponent);
+      this._initializeFormHandlers();
+    } catch (error) {
+      this._view.showError('Failed to initialize: ' + error.message);
+    }
   }
 
-  async initializeMap() {
-    try {
-      await this.mapComponent.init();
-      this.mapComponent.onLocationSelect = (location) => {
-        this.view.setSelectedLocation(location);
-      };
-      this.view.setMap(this.mapComponent);
-    } catch (error) {
-      this.view.showError('Failed to initialize map: ' + error.message);
+  _initializeFormHandlers() {
+    const form = document.getElementById('story-form');
+    if (form) {
+      form.addEventListener('submit', this._handleSubmit.bind(this));
     }
+
+    const getLocationBtn = document.getElementById('get-location');
+    if (getLocationBtn) {
+      getLocationBtn.addEventListener('click', this._getCurrentLocation.bind(this));
+    }
+  }
+
+  async _handleSubmit(event) {
+    event.preventDefault();
+    try {
+      this._view.showLoading();
+      const formData = this._view.getFormData();
+      const response = await this._model.addStory(formData);
+      this._view.showSuccess('Story added successfully!');
+      this._view.resetForm();
+    } catch (error) {
+      this._view.showError(error.message);
+    } finally {
+      this._view.hideLoading();
+    }
+  }
+
+  async _getCurrentLocation() {
+    try {
+      const location = await this._mapComponent.getCurrentLocation();
+      this._view.setLocation(location.lat, location.lon);
+      this._mapComponent.setCenter(location.lat, location.lon);
+    } catch (error) {
+      this._view.showError('Failed to get location: ' + error.message);
+    }
+  }
+
+  _handleLocationSelect({ lat, lng }) {
+    this._view.setLocation(lat, lng);
+    if (this._selectedMarker) {
+      this._selectedMarker.remove();
+      this._selectedMarker = null;
+    }
+    this._selectedMarker = this._mapComponent.addMarker(lat, lng, 'Selected Location', '');
   }
 
   async initializeCamera() {
     try {
-      await this.camera.start();
-      this.isCameraActive = true;
-      this.view.setCamera(this.camera);
+      await this._camera.start();
+      this._isCameraActive = true;
+      this._view.setCamera(this._camera);
+      this._view.updateCameraPreview();
     } catch (error) {
-      this.view.showError('Failed to start camera: ' + error.message);
+      this._view.showError('Failed to start camera: ' + error.message);
     }
-  }
-
-  setupFormSubmission() {
-    this.view.bindSubmit(async (formData) => {
-      try {
-        // Validasi input
-        const validationError = this.validateFormData(formData);
-        if (validationError) {
-          throw new Error(validationError);
-        }
-
-        this.view.showLoading();
-        await this.model.addStory(formData);
-        this.view.showSuccess('Story added successfully!');
-        setTimeout(() => {
-          window.location.hash = '#/';
-        }, 1500);
-      } catch (error) {
-        this.view.showError(error.message);
-      } finally {
-        this.view.hideLoading();
-      }
-    });
-  }
-
-  validateFormData(formData) {
-    const description = formData.get('description');
-    const photo = formData.get('photo');
-    const lat = formData.get('lat');
-    const lon = formData.get('lon');
-
-    if (!description || description.trim() === '') {
-      return 'Description is required';
-    }
-
-    if (!photo) {
-      return 'Photo is required';
-    }
-
-    if (!lat || !lon) {
-      return 'Location is required';
-    }
-
-    // Validasi ukuran file
-    if (photo instanceof File && photo.size > 1 * 1024 * 1024) {
-      return 'Photo size must be less than 1MB';
-    }
-
-    return null;
   }
 
   async handleCapture() {
     try {
-      await this.camera.captureImage();
-      this.view.updateCameraPreview();
+      await this._camera.captureImage();
+      this._view.updateCameraPreview();
     } catch (error) {
-      this.view.showError('Failed to capture photo: ' + error.message);
+      this._view.showError('Failed to capture photo: ' + error.message);
     }
   }
 
   async handleSwitchCamera() {
     try {
-      await this.camera.switchCamera();
-      this.view.updateCameraPreview();
+      await this._camera.switchCamera();
+      this._view.updateCameraPreview();
     } catch (error) {
-      this.view.showError('Failed to switch camera: ' + error.message);
+      this._view.showError('Failed to switch camera: ' + error.message);
     }
   }
 
   handleRetake() {
-    this.camera.clearCapturedImage();
-    this.view.updateCameraPreview();
+    this._camera.clearCapturedImage();
+    this._view.updateCameraPreview();
   }
 
   handleUsePhoto() {
-    const capturedImage = this.camera.getCapturedImage();
+    const capturedImage = this._camera.getCapturedImage();
     if (capturedImage) {
-      this.view.setPhoto(capturedImage);
-      this.camera.stop();
-      this.isCameraActive = false;
-      this.view.updateCameraPreview();
-    }
-  }
-
-  async getCurrentLocation() {
-    try {
-      const location = await this.mapComponent.getCurrentLocation();
-      this.view.setSelectedLocation(location);
-      this.mapComponent.setCenter(location.lat, location.lng);
-    } catch (error) {
-      this.view.showError('Failed to get location: ' + error.message);
+      this._view.setPhoto(capturedImage);
+      this._camera.stop();
+      this._isCameraActive = false;
+      this._view.updateCameraPreview();
     }
   }
 
   destroy() {
-    if (this.isCameraActive) {
-      this.camera.stop();
+    if (this._isCameraActive) {
+      this._camera.stop();
     }
-    this.mapComponent.destroy();
+    if (this._mapComponent) {
+      this._mapComponent.destroy();
+      this._mapComponent = null;
+    }
+  }
+
+  async addStory(storyData) {
+    // storyData: { description, photo, lat, lon }
+    // Konversi ke FormData jika perlu
+    let formData;
+    if (storyData instanceof FormData) {
+      formData = storyData;
+    } else {
+      formData = new FormData();
+      formData.append('description', storyData.description);
+      if (storyData.photo) formData.append('photo', storyData.photo);
+      if (storyData.lat) formData.append('lat', storyData.lat);
+      if (storyData.lon) formData.append('lon', storyData.lon);
+    }
+    return await this._model.addStory(formData);
   }
 }
 

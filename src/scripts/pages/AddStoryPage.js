@@ -4,8 +4,6 @@ import StoryFormView from '../views/StoryFormView';
 import StoryPresenter from '../presenters/StoryPresenter';
 import MapComponent from '../components/MapComponent';
 import Camera from '../components/Camera';
-import AddStoryView from '../views/pages/AddStoryView';
-import AddStoryPresenter from '../presenters/pages/AddStoryPresenter';
 
 class AddStoryPage {
   constructor() {
@@ -22,10 +20,6 @@ class AddStoryPage {
       this.mapComponent.destroy();
       this.mapComponent = null;
     }
-    const oldMap = document.getElementById('location-map');
-    if (oldMap) {
-      oldMap.remove();
-    }
     if (!checkAuth()) {
       window.location.hash = '/login';
       return;
@@ -38,10 +32,16 @@ class AddStoryPage {
         ${this.view.render()}
       </section>
     `;
+    await Promise.resolve();
     this.presenter = new StoryPresenter(this.view);
     await this.presenter.init();
-    this.mapComponent = new MapComponent('location-map');
-    await this.mapComponent.init();
+    if (this.view.setCameraInitCallback) {
+      this.view.setCameraInitCallback(() => this.presenter.initializeCamera());
+    }
+    if (this.view.initializeTabSwitching) this.view.initializeTabSwitching();
+    if (this.view.initializeFileUpload) this.view.initializeFileUpload();
+    this.mapComponent = new MapComponent();
+    await this.mapComponent.init('location-map');
     this.mapComponent.onLocationSelect = this.handleLocationSelect.bind(this);
     this.initializeFormHandlers();
   }
@@ -57,26 +57,20 @@ class AddStoryPage {
     }
     document.addEventListener('click', (event) => {
       if (event.target.closest('#captureButton')) {
-        this.handleCapture();
+        this.presenter.handleCapture();
       } else if (event.target.closest('#switchCameraButton')) {
-        this.handleSwitchCamera();
+        this.presenter.handleSwitchCamera();
       } else if (event.target.closest('#retakeButton')) {
-        this.handleRetake();
+        this.presenter.handleRetake();
       } else if (event.target.closest('#usePhotoButton')) {
-        this.handleUsePhoto();
+        this.presenter.handleUsePhoto();
       }
     });
   }
 
   async handleSubmit(event) {
     event.preventDefault();
-    const formData = new FormData(event.target);
-    const storyData = {
-      description: formData.get('description'),
-      photoUrl: formData.get('photoUrl'),
-      lat: formData.get('lat'),
-      lon: formData.get('lon')
-    };
+    const storyData = this.view.getFormData();
     try {
       await this.presenter.addStory(storyData);
       window.location.hash = '#/';
@@ -151,7 +145,10 @@ class AddStoryPage {
 
   handleLocationSelect({ lat, lng }) {
     this.view.setLocation(lat, lng);
-    this.mapComponent.clearMarkers();
+    if (this.selectedMarker) {
+      this.selectedMarker.remove();
+      this.selectedMarker = null;
+    }
     this.selectedMarker = this.mapComponent.addMarker(lat, lng, 'Selected Location', '');
   }
 

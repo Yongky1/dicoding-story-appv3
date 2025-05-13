@@ -31,16 +31,22 @@ class HomePresenter {
       }).join('');
       this.view.showStories(storiesHtml);
       if (!this.mapComponent) {
-        this.mapComponent = new MapComponent('stories-map');
-        this.mapComponent.init();
+        this.mapComponent = new MapComponent();
+        this.mapComponent.init('stories-map');
       }
-      stories.forEach(story => {
-        if ((story.lat || story.latitude) && (story.lon || story.longitude)) {
-          const lat = story.lat || story.latitude;
-          const lon = story.lon || story.longitude;
-          this.mapComponent.addMarker(lat, lon, story.name, story.description);
+      // Tambahkan semua marker sekaligus agar tidak menimpa marker sebelumnya
+      const validStories = stories.filter(story => (story.lat || story.latitude) && (story.lon || story.longitude));
+      if (validStories.length > 0) {
+        this.mapComponent.addMarkers(validStories.map(story => ({
+          lat: story.lat || story.latitude,
+          lng: story.lon || story.longitude,
+          popupContent: `<b>${story.name}</b><br>${story.description}`
+        })));
+        if (this.mapComponent.fitBounds) {
+          const bounds = validStories.map(story => [story.lat || story.latitude, story.lon || story.longitude]);
+          this.mapComponent.fitBounds(bounds);
         }
-      });
+      }
     } catch (e) {
       this.view.showError(e.message);
     }

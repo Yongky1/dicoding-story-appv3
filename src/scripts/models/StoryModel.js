@@ -1,31 +1,53 @@
 import storyApi from '../api/storyApi';
 
 class StoryModel {
-  async addStory(storyData) {
+  constructor() {
+    this._stories = [];
+  }
+
+  async getAllStories() {
     try {
-      if (!storyData.get('description')) {
-        throw new Error('Description is required');
+      const response = await fetch('https://story-api.dicoding.dev/v1/stories');
+      const responseJson = await response.json();
+      if (!responseJson.error) {
+        this._stories = responseJson.listStory;
+        return this._stories;
       }
-      if (!storyData.get('photo')) {
-        throw new Error('Photo is required');
-      }
-      if (!storyData.get('lat') || !storyData.get('lon')) {
-        throw new Error('Location is required');
-      }
-      const response = await storyApi.addStory(storyData);
-      if (!response.error) {
-        return response;
-      } else {
-        throw new Error(response.message || 'Failed to add story');
-      }
+      throw new Error(responseJson.message);
     } catch (error) {
-      if (error.response) {
-        throw new Error(error.response.data.message || 'Failed to add story');
-      } else if (error.request) {
-        throw new Error('No response from server. Please check your internet connection.');
-      } else {
-        throw new Error(error.message || 'Failed to add story');
+      throw new Error(`Failed to fetch stories: ${error.message}`);
+    }
+  }
+
+  async addStory(formData) {
+    try {
+      const response = await fetch('https://story-api.dicoding.dev/v1/stories', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: formData,
+      });
+      const responseJson = await response.json();
+      if (!responseJson.error) {
+        return responseJson;
       }
+      throw new Error(responseJson.message);
+    } catch (error) {
+      throw new Error(`Failed to add story: ${error.message}`);
+    }
+  }
+
+  async getStoryById(id) {
+    try {
+      const response = await fetch(`https://story-api.dicoding.dev/v1/stories/${id}`);
+      const responseJson = await response.json();
+      if (!responseJson.error) {
+        return responseJson.story;
+      }
+      throw new Error(responseJson.message);
+    } catch (error) {
+      throw new Error(`Failed to fetch story: ${error.message}`);
     }
   }
 
@@ -43,26 +65,7 @@ class StoryModel {
       } else if (error.request) {
         throw new Error('No response from server. Please check your internet connection.');
       } else {
-        throw new Error(error.message || 'Failed to fetch stories');
-      }
-    }
-  }
-
-  async getStoryById(id) {
-    try {
-      const response = await storyApi.getStoryById(id);
-      if (!response.error) {
-        return response.story;
-      } else {
-        throw new Error(response.message || 'Failed to fetch story');
-      }
-    } catch (error) {
-      if (error.response) {
-        throw new Error(error.response.data.message || 'Failed to fetch story');
-      } else if (error.request) {
-        throw new Error('No response from server. Please check your internet connection.');
-      } else {
-        throw new Error(error.message || 'Failed to fetch story');
+      throw new Error(error.message || 'Failed to fetch stories');
       }
     }
   }
