@@ -7,7 +7,7 @@ class StoryPresenter {
     this._view = view;
     this._model = new StoryModel();
     this._mapComponent = null;
-    this._camera = new Camera();
+    this._camera = null;
     this._isCameraActive = false;
     this._selectedMarker = null;
   }
@@ -76,6 +76,9 @@ class StoryPresenter {
 
   async initializeCamera() {
     try {
+      if (!this._camera) {
+        this._camera = new Camera('video-preview');
+      }
       await this._camera.start();
       this._isCameraActive = true;
       this._view.setCamera(this._camera);

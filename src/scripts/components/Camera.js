@@ -1,6 +1,7 @@
 class Camera {
-  constructor() {
+  constructor(videoElementId) {
     this.stream = null;
+    this.videoElementId = videoElementId;
     this.videoElement = null;
     this.isActive = false;
     this.facingMode = 'environment';
@@ -10,6 +11,10 @@ class Camera {
   async start() {
     this.stop();
     try {
+      this.videoElement = document.getElementById(this.videoElementId);
+      if (!this.videoElement) {
+        throw new Error(`Video element with id '${this.videoElementId}' not found in DOM`);
+      }
       this.stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: this.facingMode,
@@ -18,22 +23,25 @@ class Camera {
         },
         audio: false
       });
-      this.videoElement = document.createElement('video');
       this.videoElement.srcObject = this.stream;
       this.videoElement.autoplay = true;
       this.videoElement.playsInline = true;
+      this.videoElement.classList.remove('hidden');
       this.isActive = true;
       return this.videoElement;
     } catch (error) {
       let errorMessage = 'Failed to access camera';
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Camera access was denied';
+        errorMessage = 'Camera access was denied. Please allow camera access in your browser settings.';
       } else if (error.name === 'NotFoundError') {
-        errorMessage = 'No camera found';
+        errorMessage = 'No camera found on this device.';
       } else if (error.name === 'NotReadableError') {
-        errorMessage = 'Camera is already in use';
+        errorMessage = 'Camera is already in use by another application.';
+      } else if (window.isSecureContext === false) {
+        errorMessage = 'Camera only works on HTTPS or localhost.';
       }
-      throw new Error(errorMessage);
+      alert(errorMessage + '\n' + error.message);
+      throw new Error(errorMessage + ': ' + error.message);
     }
   }
 
@@ -44,9 +52,6 @@ class Camera {
     }
     if (this.videoElement) {
       this.videoElement.srcObject = null;
-      if (this.videoElement.parentNode) {
-        this.videoElement.parentNode.removeChild(this.videoElement);
-      }
       this.videoElement = null;
     }
     this.isActive = false;
@@ -71,39 +76,6 @@ class Camera {
     }
     this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
     await this.start();
-  }
-
-  getPreviewElement() {
-    if (!this.isActive || !this.videoElement) {
-      return '';
-    }
-    const previewContent = this.capturedImage 
-      ? `<img src="${this.capturedImage}" alt="Captured photo" class="captured-preview">`
-      : this.videoElement.outerHTML;
-    return `
-      <div class="camera-container">
-        <div class="camera-preview">
-          ${previewContent}
-        </div>
-        <div class="camera-controls">
-          ${!this.capturedImage ? `
-            <button id="captureButton" class="btn btn-primary">
-              <i class="fas fa-camera"></i> Capture
-            </button>
-            <button id="switchCameraButton" class="btn btn-secondary">
-              <i class="fas fa-sync"></i> Switch Camera
-            </button>
-          ` : `
-            <button id="retakeButton" class="btn btn-warning">
-              <i class="fas fa-redo"></i> Retake
-            </button>
-            <button id="usePhotoButton" class="btn btn-success">
-              <i class="fas fa-check"></i> Use Photo
-            </button>
-          `}
-        </div>
-      </div>
-    `;
   }
 
   getCapturedImage() {

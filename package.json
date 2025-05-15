@@ -22,6 +22,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.4.2",
     "dicoding-story-appv3": "file:",
+    "graceful-fs": "^4.2.11",
     "leaflet": "^1.9.4"
   }
 }

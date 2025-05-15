@@ -13,10 +13,10 @@ class MapComponent {
       this.destroy();
     }
 
+    // Reset _leaflet_id jika sudah ada, agar tidak error saat inisialisasi ulang
     const container = document.getElementById(containerId);
-    if (!container) {
-      console.error(`Map container with id "${containerId}" not found`);
-      return;
+    if (container && container._leaflet_id) {
+      container._leaflet_id = null;
     }
 
     try {

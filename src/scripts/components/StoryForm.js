@@ -184,18 +184,27 @@ class StoryForm {
   }
 
   initializeCamera() {
-    this.camera = new Camera('video-preview', 'camera-canvas', 'camera-preview');
-    
+    const videoElement = document.getElementById('video-preview');
+    if (!videoElement) {
+      alert('Video element for camera preview not found!');
+      return;
+    }
+    this.camera = new Camera('video-preview');
+
     const startButton = document.getElementById('start-camera');
-    const captureButton = document.getElementById('capture-photo');
+    let captureButton = document.getElementById('capture-photo');
     const retakeButton = document.getElementById('retake-photo');
     const switchButton = document.getElementById('switch-camera');
     const cameraStatus = document.getElementById('camera-status');
-    
+
+    // Hapus event listener lama dengan cloneNode
+    const newCaptureButton = captureButton.cloneNode(true);
+    captureButton.parentNode.replaceChild(newCaptureButton, captureButton);
+    captureButton = newCaptureButton;
+
     startButton.addEventListener('click', async () => {
       cameraStatus.textContent = 'Starting camera...';
       startButton.disabled = true;
-      
       try {
         const started = await this.camera.start();
         if (started) {
@@ -210,33 +219,78 @@ class StoryForm {
       } catch (error) {
         startButton.disabled = false;
         cameraStatus.textContent = `Error: ${error.message}. Please use file upload instead.`;
-        
         document.getElementById('file-option-btn').click();
       }
     });
 
     captureButton.addEventListener('click', async () => {
       try {
+        if (!this.camera) {
+          cameraStatus.textContent = 'Camera is not initialized. Please start the camera first.';
+          alert('Camera is not initialized. Please start the camera first.');
+          return;
+        }
         cameraStatus.textContent = 'Capturing photo...';
-        this.photoFile = await this.camera.capture();
+        if (!videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) {
+          cameraStatus.textContent = 'Camera is not ready. Please wait a moment and try again.';
+          alert('Camera is not ready. Please wait a moment and try again.');
+          return;
+        }
+        const imageData = await this.camera.captureImage();
+        const file = this._dataURLtoFile(imageData, 'camera-photo.jpg');
+        if (!(file instanceof File) || file.size === 0) {
+          cameraStatus.textContent = 'Failed to capture photo. Please try again.';
+          alert('Failed to capture photo. Please try again.');
+          return;
+        }
+        this.photoFile = file;
         captureButton.classList.add('hidden');
         switchButton.classList.add('hidden');
         retakeButton.classList.remove('hidden');
         cameraStatus.textContent = 'Photo captured';
+        const cameraPreviewImg = document.getElementById('camera-preview');
+        cameraPreviewImg.src = imageData;
+        cameraPreviewImg.classList.remove('hidden');
+        videoElement.classList.add('hidden');
+        const filePreviewContainer = document.getElementById('file-preview-container');
+        const filePreview = document.getElementById('file-preview');
+        const fileStatus = document.getElementById('file-status');
+        const fileName = document.getElementById('file-name');
+        filePreview.src = imageData;
+        filePreviewContainer.classList.remove('hidden');
+        fileStatus.textContent = 'File selected successfully';
+        fileStatus.classList.remove('error');
+        fileName.textContent = file.name;
+        const fileInput = document.getElementById('photo-file');
+        if (fileInput) fileInput.value = '';
       } catch (error) {
         cameraStatus.textContent = `Error capturing photo: ${error.message}`;
+        console.error('Error capturing photo:', error);
+        alert('Error capturing photo: ' + error.message);
       }
     });
 
     retakeButton.addEventListener('click', async () => {
       cameraStatus.textContent = 'Restarting camera...';
       try {
-        await this.camera.retake();
+        this.camera.clearCapturedImage();
+        await this.camera.start();
         this.photoFile = null;
         captureButton.classList.remove('hidden');
         switchButton.classList.remove('hidden');
         retakeButton.classList.add('hidden');
         cameraStatus.textContent = 'Camera ready';
+        const cameraPreviewImg = document.getElementById('camera-preview');
+        cameraPreviewImg.classList.add('hidden');
+        videoElement.classList.remove('hidden');
+        const filePreviewContainer = document.getElementById('file-preview-container');
+        const fileStatus = document.getElementById('file-status');
+        const fileName = document.getElementById('file-name');
+        filePreviewContainer.classList.add('hidden');
+        fileStatus.textContent = '';
+        fileName.textContent = 'Choose image file (max 1MB)';
+        const fileInput = document.getElementById('photo-file');
+        if (fileInput) fileInput.value = '';
       } catch (error) {
         cameraStatus.textContent = `Error restarting camera: ${error.message}`;
       }
@@ -273,24 +327,30 @@ class StoryForm {
         this.showError('Please select a photo');
         return;
       }
-      
-      if (!this.selectedLocation) {
+      if (!this.selectedLocation || !this.selectedLocation.lat || !this.selectedLocation.lng) {
         this.showError('Please select a location on the map');
         return;
       }
-      
       const description = form.querySelector('#description').value.trim();
       if (!description) {
         this.showError('Please enter a description');
         return;
       }
       
+      // Log data yang akan dikirim
+      console.log('FormData:', {
+        description,
+        photo: this.photoFile,
+        lat: this.selectedLocation.lat,
+        lon: this.selectedLocation.lng
+      });
+      
       submitButton.disabled = true;
       
       try {
         const formData = new FormData();
         formData.append('description', description);
-        formData.append('photo', this.photoFile);
+        formData.append('photo', this.photoFile, this.photoFile.name);
         formData.append('lat', this.selectedLocation.lat);
         formData.append('lon', this.selectedLocation.lng);
         
@@ -356,6 +416,20 @@ class StoryForm {
     if (this.map) {
       this.map.destroy();
     }
+  }
+
+  _dataURLtoFile(dataURL, filename) {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+
+    return new File([u8arr], filename, { type: mime });
   }
 }
 

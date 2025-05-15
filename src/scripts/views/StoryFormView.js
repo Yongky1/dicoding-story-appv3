@@ -227,6 +227,9 @@ class StoryFormView {
 
   getFormData() {
     const description = document.getElementById('description').value;
+    if (!this._photoFile && this._camera && this._camera.capturedImage) {
+      this.setPhoto(this._camera.capturedImage);
+    }
     return {
       description,
       photo: this._photoFile,
@@ -266,9 +269,40 @@ class StoryFormView {
   }
 
   updateCameraPreview() {
-    const cameraPreview = document.getElementById('camera-preview');
-    if (this._camera) {
-      cameraPreview.innerHTML = this._camera.getPreviewElement();
+    const video = document.getElementById('video-preview');
+    const img = document.getElementById('camera-preview');
+    const captureBtn = document.getElementById('capture-photo');
+    const retakeBtn = document.getElementById('retake-photo');
+    const useBtn = document.getElementById('use-photo');
+    const switchBtn = document.getElementById('switch-camera');
+    if (!this._camera) return;
+    if (this._camera.capturedImage) {
+      // Sudah capture, tampilkan img, sembunyikan video
+      if (img) {
+        img.src = this._camera.capturedImage;
+        img.classList.remove('hidden');
+      }
+      if (video) video.classList.add('hidden');
+      if (captureBtn) captureBtn.classList.add('hidden');
+      if (retakeBtn) retakeBtn.classList.remove('hidden');
+      if (useBtn) useBtn.classList.remove('hidden');
+      if (switchBtn) switchBtn.classList.add('hidden');
+    } else if (this._camera.isActive) {
+      // Kamera aktif, belum capture
+      if (video) video.classList.remove('hidden');
+      if (img) img.classList.add('hidden');
+      if (captureBtn) captureBtn.classList.remove('hidden');
+      if (retakeBtn) retakeBtn.classList.add('hidden');
+      if (useBtn) useBtn.classList.add('hidden');
+      if (switchBtn) switchBtn.classList.remove('hidden');
+    } else {
+      // Kamera tidak aktif
+      if (video) video.classList.add('hidden');
+      if (img) img.classList.add('hidden');
+      if (captureBtn) captureBtn.classList.add('hidden');
+      if (retakeBtn) retakeBtn.classList.add('hidden');
+      if (useBtn) useBtn.classList.add('hidden');
+      if (switchBtn) switchBtn.classList.add('hidden');
     }
   }
 
@@ -299,6 +333,13 @@ class StoryFormView {
     const formMessage = document.getElementById('form-message');
     if (formMessage) {
       formMessage.innerHTML = '';
+    }
+  }
+
+  handleRetakePhoto() {
+    if (this._camera) {
+      this._camera.clearCapturedImage();
+      this.updateCameraPreview();
     }
   }
 }

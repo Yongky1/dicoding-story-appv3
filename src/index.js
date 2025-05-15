@@ -19,4 +19,18 @@ import App from './scripts/app';
 document.addEventListener('DOMContentLoaded', () => {
   const app = new App();
   app.init();
+
+  // Accessibility: Skip to content logic
+  const mainContent = document.querySelector('#main-content');
+  const skipLink = document.querySelector('.skip-link');
+  if (mainContent && skipLink) {
+    skipLink.addEventListener('click', function (event) {
+      event.preventDefault();
+      skipLink.blur();
+      mainContent.setAttribute('tabindex', '-1'); // Ensure focusable
+      mainContent.focus();
+      mainContent.scrollIntoView();
+      setTimeout(() => mainContent.removeAttribute('tabindex'), 1000); // Clean up
+    });
+  }
 });

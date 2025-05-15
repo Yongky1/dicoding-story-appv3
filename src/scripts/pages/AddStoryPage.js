@@ -10,7 +10,6 @@ class AddStoryPage {
     this.view = new StoryFormView();
     this.presenter = null;
     this.mapComponent = null;
-    this.camera = new Camera();
     this.isCameraActive = false;
     this.selectedMarker = null;
   }
@@ -20,6 +19,8 @@ class AddStoryPage {
       this.mapComponent.destroy();
       this.mapComponent = null;
     }
+    const mapDiv = document.getElementById('location-map');
+    if (mapDiv) mapDiv.innerHTML = '';
     if (!checkAuth()) {
       window.location.hash = '/login';
       return;
@@ -53,15 +54,24 @@ class AddStoryPage {
       form.addEventListener('submit', this.handleSubmit.bind(this));
     }
     if (cameraButton) {
-      cameraButton.addEventListener('click', this.toggleCamera.bind(this));
+      cameraButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        // Start camera and show preview
+        try {
+          await this.presenter.initializeCamera();
+          // Show capture/switch buttons
+          document.getElementById('capture-photo').classList.remove('hidden');
+          cameraButton.classList.add('hidden');
+        } catch (error) {
+          this.view.showError('Failed to start camera: ' + error.message);
+        }
+      });
     }
     document.addEventListener('click', (event) => {
-      if (event.target.closest('#captureButton')) {
+      if (event.target.closest('#capture-photo') || event.target.closest('#captureButton')) {
         this.presenter.handleCapture();
-      } else if (event.target.closest('#switchCameraButton')) {
-        this.presenter.handleSwitchCamera();
-      } else if (event.target.closest('#retakeButton')) {
-        this.presenter.handleRetake();
+      } else if (event.target.closest('#retake-photo') || event.target.closest('#retakeButton')) {
+        this.view.handleRetakePhoto();
       } else if (event.target.closest('#usePhotoButton')) {
         this.presenter.handleUsePhoto();
       }
@@ -79,28 +89,10 @@ class AddStoryPage {
     }
   }
 
-  async toggleCamera() {
-    const cameraPreview = document.querySelector('#camera-preview');
-    if (!this.isCameraActive) {
-      try {
-        await this.camera.start();
-        this.isCameraActive = true;
-        cameraPreview.innerHTML = this.camera.getPreviewElement();
-      } catch (error) {
-        this.view.showError('Failed to start camera: ' + error.message);
-      }
-    } else {
-      this.camera.stop();
-      this.isCameraActive = false;
-      cameraPreview.innerHTML = '';
-    }
-  }
-
   async handleCapture() {
     try {
-      await this.camera.captureImage();
-      const cameraPreview = document.querySelector('#camera-preview');
-      cameraPreview.innerHTML = this.camera.getPreviewElement();
+      await this.presenter._camera.captureImage();
+      this.view.updateCameraPreview();
     } catch (error) {
       this.view.showError('Failed to capture photo: ' + error.message);
     }
@@ -108,28 +100,25 @@ class AddStoryPage {
 
   async handleSwitchCamera() {
     try {
-      await this.camera.switchCamera();
-      const cameraPreview = document.querySelector('#camera-preview');
-      cameraPreview.innerHTML = this.camera.getPreviewElement();
+      await this.presenter._camera.switchCamera();
+      this.view.updateCameraPreview();
     } catch (error) {
       this.view.showError('Failed to switch camera: ' + error.message);
     }
   }
 
   handleRetake() {
-    this.camera.clearCapturedImage();
-    const cameraPreview = document.querySelector('#camera-preview');
-    cameraPreview.innerHTML = this.camera.getPreviewElement();
+    this.presenter._camera.clearCapturedImage();
+    this.view.updateCameraPreview();
   }
 
   handleUsePhoto() {
-    const capturedImage = this.camera.getCapturedImage();
+    const capturedImage = this.presenter._camera.getCapturedImage();
     if (capturedImage) {
       this.view.setPhoto(capturedImage);
-      this.camera.stop();
+      this.presenter._camera.stop();
       this.isCameraActive = false;
-      const cameraPreview = document.querySelector('#camera-preview');
-      cameraPreview.innerHTML = '';
+      this.view.updateCameraPreview();
     }
   }
 
@@ -153,8 +142,8 @@ class AddStoryPage {
   }
 
   destroy() {
-    if (this.isCameraActive) {
-      this.camera.stop();
+    if (this.isCameraActive && this.presenter && this.presenter._camera) {
+      this.presenter._camera.stop();
     }
     this.mapComponent.destroy();
   }
