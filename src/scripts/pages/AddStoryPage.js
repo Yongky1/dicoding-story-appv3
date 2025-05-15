@@ -11,7 +11,6 @@ class AddStoryPage {
     this.presenter = null;
     this.mapComponent = null;
     this.isCameraActive = false;
-    this.selectedMarker = null;
   }
 
   async render() {
@@ -36,6 +35,9 @@ class AddStoryPage {
     await Promise.resolve();
     this.presenter = new StoryPresenter(this.view);
     await this.presenter.init();
+    this.mapComponent = new MapComponent();
+    this.mapComponent.init('location-map');
+    this.mapComponent.onLocationSelect((lat, lng) => this.handleLocationSelect(lat, lng));
     if (this.view.setCameraInitCallback) {
       this.view.setCameraInitCallback(() => this.presenter.initializeCamera());
     }
@@ -130,11 +132,6 @@ class AddStoryPage {
 
   handleLocationSelect(lat, lng) {
     this.view.setLocation(lat, lng);
-    if (this.selectedMarker) {
-      this.selectedMarker.remove();
-      this.selectedMarker = null;
-    }
-    this.selectedMarker = this.mapComponent.addMarker(lat, lng, 'Selected Location', '');
   }
 
   destroy() {
