@@ -33,11 +33,6 @@ class StoryPresenter {
     if (form) {
       form.addEventListener('submit', this._handleSubmit.bind(this));
     }
-
-    const getLocationBtn = document.getElementById('get-location');
-    if (getLocationBtn) {
-      getLocationBtn.addEventListener('click', this._getCurrentLocation.bind(this));
-    }
   }
 
   async _handleSubmit(event) {
@@ -60,18 +55,22 @@ class StoryPresenter {
       const location = await this._mapComponent.getCurrentLocation();
       this._view.setLocation(location.lat, location.lon);
       this._mapComponent.setCenter(location.lat, location.lon);
+      if (this._selectedMarker) {
+        this._selectedMarker.remove();
+      }
+      this._selectedMarker = this._mapComponent.addMarker(location.lat, location.lon, 'Current Location');
     } catch (error) {
       this._view.showError('Failed to get location: ' + error.message);
     }
   }
 
-  _handleLocationSelect({ lat, lng }) {
+  _handleLocationSelect(lat, lng) {
     this._view.setLocation(lat, lng);
     if (this._selectedMarker) {
       this._selectedMarker.remove();
       this._selectedMarker = null;
     }
-    this._selectedMarker = this._mapComponent.addMarker(lat, lng, 'Selected Location', '');
+    this._selectedMarker = this._mapComponent.addMarker(lat, lng, 'Selected Location');
   }
 
   async initializeCamera() {
@@ -90,6 +89,10 @@ class StoryPresenter {
 
   async handleCapture() {
     try {
+      if (!this._camera) {
+        this._view.showError('Camera is not initialized. Please start the camera first.');
+        return;
+      }
       await this._camera.captureImage();
       this._view.updateCameraPreview();
     } catch (error) {

@@ -41,10 +41,8 @@ class AddStoryPage {
     }
     if (this.view.initializeTabSwitching) this.view.initializeTabSwitching();
     if (this.view.initializeFileUpload) this.view.initializeFileUpload();
-    this.mapComponent = new MapComponent();
-    await this.mapComponent.init('location-map');
-    this.mapComponent.onLocationSelect = this.handleLocationSelect.bind(this);
     this.initializeFormHandlers();
+    await this.presenter._getCurrentLocation();
   }
 
   initializeFormHandlers() {
@@ -124,15 +122,13 @@ class AddStoryPage {
 
   async getCurrentLocation() {
     try {
-      const location = await this.mapComponent.getCurrentLocation();
-      this.view.setLocation(location.lat, location.lon);
-      this.mapComponent.setCenter(location.lat, location.lon);
+      await this.presenter._getCurrentLocation();
     } catch (error) {
       this.view.showError('Failed to get location: ' + error.message);
     }
   }
 
-  handleLocationSelect({ lat, lng }) {
+  handleLocationSelect(lat, lng) {
     this.view.setLocation(lat, lng);
     if (this.selectedMarker) {
       this.selectedMarker.remove();
@@ -145,7 +141,9 @@ class AddStoryPage {
     if (this.isCameraActive && this.presenter && this.presenter._camera) {
       this.presenter._camera.stop();
     }
-    this.mapComponent.destroy();
+    if (this.mapComponent) {
+      this.mapComponent.destroy();
+    }
   }
 }
 

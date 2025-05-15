@@ -75,9 +75,6 @@ class StoryFormView {
           <div id="location-info" class="location-info" aria-live="polite"></div>
           <input type="hidden" id="lat" name="lat" required />
           <input type="hidden" id="lon" name="lon" required />
-          <button type="button" id="get-location" class="btn btn-secondary">
-            <i class="fas fa-location-arrow"></i> Get Current Location
-          </button>
         </div>
 
         <button type="submit" class="btn btn-primary submit-btn">
@@ -227,14 +224,30 @@ class StoryFormView {
 
   getFormData() {
     const description = document.getElementById('description').value;
+    let lat = document.getElementById('lat').value;
+    let lon = document.getElementById('lon').value;
+
+    // Jika input hidden kosong, ambil dari state JS
+    if ((!lat || !lon) && this._selectedLocation) {
+      lat = this._selectedLocation.lat;
+      lon = this._selectedLocation.lon;
+      // Sekaligus update input hidden agar konsisten
+      const latInput = document.getElementById('lat');
+      const lonInput = document.getElementById('lon');
+      if (latInput && lonInput) {
+        latInput.value = lat;
+        lonInput.value = lon;
+      }
+    }
+
     if (!this._photoFile && this._camera && this._camera.capturedImage) {
       this.setPhoto(this._camera.capturedImage);
     }
     return {
       description,
       photo: this._photoFile,
-      lat: this._selectedLocation?.lat,
-      lon: this._selectedLocation?.lon
+      lat: lat ? Number(lat) : undefined,
+      lon: lon ? Number(lon) : undefined
     };
   }
 
